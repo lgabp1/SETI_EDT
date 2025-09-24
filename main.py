@@ -39,6 +39,8 @@ def main():
             monday_date = datetime.datetime.strptime(raw_monday_date, "%Y-%m-%d").date()
         else:
             raise ValueError(f"Unexpected date format: {type(raw_monday_date)} - {raw_monday_date}")
+        # Force 2025
+        monday_date = monday_date.replace(year=2025)
             
         # print(f"Week starting on: {monday_date}")
 
@@ -67,9 +69,9 @@ def main():
                         time_range = ('07', '00', '13', '00') 
                     else:
                         time_range = ('13', '00', '19', '00')
+                    content += "(HEURES NON SPECIFIEES)"
                     # print(f"  WARNING: No time range found for entry: {content}, assuming {time_range[0]}:{time_range[1]} to {time_range[2]}:{time_range[3]}")
                         
-
                 start_time = f"{time_range[0]}:{time_range[1]}"
                 end_time = f"{time_range[2]}:{time_range[3]}"
                 ical_event = icalendar.Event()
