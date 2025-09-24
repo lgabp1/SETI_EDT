@@ -10,6 +10,16 @@ PATH_CAL_EXPORT = PATH_FOLDER / 'EDT.ics'
 
 RE_TIME = re.compile(r'(?P<hours1>\d{1,2})[hH]\s?(?P<minutes1>\d{1,2})?\s?[-/]\s?(?P<hours2>\d{1,2})[hH]\s?(?P<minutes2>\d{1,2})?')
 
+class Event:
+    def __init__(self, date: datetime.date, start_time: str, end_time: str, description: str):
+        self.date = date
+        self.start_time = start_time
+        self.end_time = end_time
+        self.description = description
+
+    def __repr__(self):
+        return f"Event(date={self.date}, start_time={self.start_time}, end_time={self.end_time}, description={self.description.replace('\n', '\t')})"
+
 def main():
     # Import and read the Excel file
     wb = openpyxl.load_workbook(PATH_RAW_CAL)
@@ -23,7 +33,7 @@ def main():
      # [138, 146] + \
 
     # Iterate over each week
-    cal = icalendar.Calendar()
+    events:list[Event] = []
     for row_start in week_rows:
         # === Weekly parsing ===
         raw_monday_date = sheet.cell(row=row_start, column=1).value
@@ -43,7 +53,6 @@ def main():
         monday_date = monday_date.replace(year=2025)
             
         # print(f"Week starting on: {monday_date}")
-
         for col in range(2, 11 + 1):
             for row in (row_start, row_start+4): # Morning / Afternoon
                 # print(f"{col}: {sheet.cell(row=row, column=col).value}")
@@ -74,17 +83,86 @@ def main():
                         
                 start_time = f"{time_range[0]}:{time_range[1]}"
                 end_time = f"{time_range[2]}:{time_range[3]}"
-                ical_event = icalendar.Event()
-                start_dt = datetime.datetime.combine(day, datetime.datetime.strptime(start_time, "%H:%M").time())
-                end_dt = datetime.datetime.combine(day, datetime.datetime.strptime(end_time, "%H:%M").time())
-                ical_event.add('dtstart', start_dt)
-                ical_event.add('dtend', end_dt)
-                ical_event.add('summary', content)
-                cal.add_component(ical_event)
+                event = Event(date=day, start_time=start_time, end_time=end_time, description=content)
+                events.append(event)
+                
+    # Export all events
+    cal = icalendar.Calendar()
+    for e in events:
+        ical_event = icalendar.Event()
+        start_dt = datetime.datetime.combine(e.date, datetime.datetime.strptime(e.start_time, "%H:%M").time())
+        end_dt = datetime.datetime.combine(e.date, datetime.datetime.strptime(e.end_time, "%H:%M").time())
+        ical_event.add('dtstart', start_dt)
+        ical_event.add('dtend', end_dt)
+        ical_event.add('summary', e.description)
+        cal.add_component(ical_event)
 
     with open(PATH_CAL_EXPORT, 'wb') as f:
         f.write(cal.to_ical())
 
+    # Export events by type
+    events_by_type: dict[str, list[Event]] = {}
+    for e in events:
+        if (e.description.startswith("A0") or 
+        e.description.startswith("B0") or 
+        e.description.startswith("C0") or
+        e.description.startswith("RaN")):
+            typ = "TC"
+        elif e.description.startswith("A1"):
+            typ = "A1"
+        elif e.description.startswith("A2"):
+            typ = "A2"
+        elif e.description.startswith("A3"):
+            typ = "A3"
+        elif e.description.startswith("A4"):
+            typ = "A4"
+        elif e.description.startswith("A5"):
+            typ = "A5"
+        elif e.description.startswith("B1"):
+            typ = "B1"
+        elif e.description.startswith("B2"):
+            typ = "B2"
+        elif e.description.startswith("B3"):
+            typ = "B3"
+        elif e.description.startswith("B4"):
+            typ = "B4"
+        elif e.description.startswith("B5"):
+            typ = "B5"
+        elif e.description.startswith("C1"):
+            typ = "C1"
+        elif e.description.startswith("C2"):
+            typ = "C2"
+        elif e.description.startswith("C3"):
+            typ = "C3"
+        elif e.description.startswith("C4"):
+            typ = "C4"
+        elif e.description.startswith("C5"):
+            typ = "C5"
+        elif e.description.startswith("IDG"):
+            typ = "IDG"
+        elif e.description.startswith("IR"):
+            typ = "IR"
+        else:
+            typ = "OTHER"
+            print(f"WARNING: no type found for: {e=}")
+
+        if typ not in events_by_type:
+            events_by_type[typ] = []
+        events_by_type[typ].append(e)
+
+    for t in events_by_type:
+        cal = icalendar.Calendar()
+        for e in events_by_type[t]:
+            ical_event = icalendar.Event()
+            start_dt = datetime.datetime.combine(e.date, datetime.datetime.strptime(e.start_time, "%H:%M").time())
+            end_dt = datetime.datetime.combine(e.date, datetime.datetime.strptime(e.end_time, "%H:%M").time())
+            ical_event.add('dtstart', start_dt)
+            ical_event.add('dtend', end_dt)
+            ical_event.add('summary', e.description)
+            cal.add_component(ical_event)
+        path_export = PATH_FOLDER / f"EDT_{t}.ics"
+        with open(path_export, 'wb') as f:
+            f.write(cal.to_ical())
 
 if __name__ == '__main__':
     main()
