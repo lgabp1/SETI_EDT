@@ -3,10 +3,12 @@ import datetime
 import re
 import icalendar
 import openpyxl
+import zoneinfo
 
 PATH_FOLDER = Path(__file__).parent
 PATH_RAW_CAL = PATH_FOLDER / 'EDT_raw.xlsx'
 PATH_CAL_EXPORT = PATH_FOLDER / 'EDT.ics'
+TIMEZONE = zoneinfo.ZoneInfo('Europe/Paris')
 
 RE_TIME = re.compile(r'(?P<hours1>\d{1,2})[hH]\s?(?P<minutes1>\d{1,2})?\s?[-/]\s?(?P<hours2>\d{1,2})[hH]\s?(?P<minutes2>\d{1,2})?')
 
@@ -19,6 +21,15 @@ class Event:
 
     def __repr__(self):
         return f"Event(date={self.date}, start_time={self.start_time}, end_time={self.end_time}, description={self.description.replace('\n', '\t')})"
+
+    def make_ical_event(self) -> icalendar.Event:
+        event = icalendar.Event()
+        start_dt = datetime.datetime.combine(self.date, datetime.datetime.strptime(self.start_time, "%H:%M").time(), TIMEZONE)
+        end_dt = datetime.datetime.combine(self.date, datetime.datetime.strptime(self.end_time, "%H:%M").time(), TIMEZONE)
+        event.add('dtstart', start_dt)
+        event.add('dtend', end_dt)
+        event.add('summary', self.description)
+        return event
 
 def main():
     # Import and read the Excel file
@@ -88,14 +99,10 @@ def main():
                 
     # Export all events
     cal = icalendar.Calendar()
+    cal.add('prodid', '-//SETIiCal//SETIiCal//EN')
+    cal.add('version', '2.0')
     for e in events:
-        ical_event = icalendar.Event()
-        start_dt = datetime.datetime.combine(e.date, datetime.datetime.strptime(e.start_time, "%H:%M").time())
-        end_dt = datetime.datetime.combine(e.date, datetime.datetime.strptime(e.end_time, "%H:%M").time())
-        ical_event.add('dtstart', start_dt)
-        ical_event.add('dtend', end_dt)
-        ical_event.add('summary', e.description)
-        cal.add_component(ical_event)
+        cal.add_component(e.make_ical_event())
 
     with open(PATH_CAL_EXPORT, 'wb') as f:
         f.write(cal.to_ical())
@@ -152,14 +159,10 @@ def main():
 
     for t in events_by_type:
         cal = icalendar.Calendar()
+        cal.add('prodid', '-//SETIiCal//SETIiCal//EN')
+        cal.add('version', '2.0')
         for e in events_by_type[t]:
-            ical_event = icalendar.Event()
-            start_dt = datetime.datetime.combine(e.date, datetime.datetime.strptime(e.start_time, "%H:%M").time())
-            end_dt = datetime.datetime.combine(e.date, datetime.datetime.strptime(e.end_time, "%H:%M").time())
-            ical_event.add('dtstart', start_dt)
-            ical_event.add('dtend', end_dt)
-            ical_event.add('summary', e.description)
-            cal.add_component(ical_event)
+            cal.add_component(e.make_ical_event())
         path_export = PATH_FOLDER / f"EDT_{t}.ics"
         with open(path_export, 'wb') as f:
             f.write(cal.to_ical())
