@@ -67,7 +67,7 @@ def main():
         for col in range(2, 11 + 1):
             for row in (row_start, row_start+4): # Morning / Afternoon
                 # print(f"{col}: {sheet.cell(row=row, column=col).value}")
-                day_offset = (col-1)//2
+                day_offset = (col-2)//2
                 day = monday_date + datetime.timedelta(days=day_offset)
 
                 contents = [sheet.cell(row=row+i, column=col).value for i in range(4)]
